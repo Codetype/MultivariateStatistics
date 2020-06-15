@@ -95,7 +95,7 @@ attach(Fifa)
 head(Fifa)
 ```
 
-# Regresja liniowa
+# Regresja
 
 ## Prosta regresja liniowa
 
@@ -125,20 +125,35 @@ plot(Age, Rating)
 abline(lmFitSimple)
 ```
 
+## Regresja wielomianowa
+
+Patrząc na powyższy wykres, ale także analizując logicznie zależność ogólnej oceny zawodnika od wieku wydaje się, że do pewnego momentu w karierze zawodnika jego **Rating** rośnie, a następnie powinien spadać.
+
+Z tego względu postanowiono zbadać, czy istnieją oznaki istotnej nieliniowej zależności między **Age** a **Rating**.
+
+Dopasowano model regresji wielomianowej trzeciego stopnia:
+
+```{r}
+ageRatingPoly <- lm(Rating ~ poly(Age, 3), data = Fifa)
+summary(ageRatingPoly)
+```
+
+Porównując dopasowanie w modelu liniowym i wielomianowym można zauważyć m.in. wzrost statystki **Multiple R-squared** z **0.21** do **0.29**.
+Potwierdza to, że zastosowanie nieliniowego modelu w tym przypadku jest jak najbardziej zasadne.
+
+W celu dodatkowej wizualizacji różnicy w dopasowaniach, oba dopasowania przedstawiono na tle danych na jednym wykresie:
+
+```{R}
+plot(Age, Rating)
+lines(sort(Age), fitted(ageRatingPoly)[order(Age)], col='red')
+abline(lmFitSimple, col='blue')
+```
+
 ## Regresja wielokrotna
 
 ```{r}
 lmFit.many <- lm(Rating ~ Nationality_encoded + Club_encoded + Club_Kit + Height + Weight + Preffered_Foot_encoded + Age + Preffered_Position_encoded)
 summary(lmFit.many)
-```
-## Nieliniowe transformacje predyktorów
-
-```{R}
-lmFit5 <- lm(Rating ~ poly(Age, 5))
-summary(lmFit5)
-```
-```{R}
-anova(lmFitSimple, lmFit5)
 ```
 
 # Klasyfikacja
