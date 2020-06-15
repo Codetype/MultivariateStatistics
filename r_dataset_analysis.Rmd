@@ -11,6 +11,11 @@ library(MASS)
 library(data.table)
 library(class)
 library(leaps)
+library(dplyr)
+library(boot)
+library(tree)
+library(gbm)
+library(randomForest)
 ```
 
 ## Fifa17 dataset
@@ -87,7 +92,8 @@ Początkowo dane należało wyczyścić: m.in.:
 
 ```{R read_data}
 Fifa <- read.csv("Fifa17_ext.csv", header = TRUE, na.strings = "?")
-Fifa <- subset(Fifa, select = -c(X))
+Fifa <- subset(Fifa, select = -c(X, Name, Nationality, Club, Club_Position, Club_Joining, Birth_Date, Preffered_Foot, Preffered_Position, Work_Rate))
+na.omit(Fifa)
 dim(Fifa)
 ```
 ```{r display_orig_data}
@@ -95,34 +101,70 @@ attach(Fifa)
 head(Fifa)
 ```
 
-# Regresja
+## Które cechy mają największy wpływ na Rating zawodnika? 
 
-## Prosta regresja liniowa
+Na początku poszukujemy optymalnego zbioru cech, który ma największy wpływ na rating zawodnika.
+W tym celu zastosujemy:
+- regresję wielokrotną,
+- selekcja cech w modelach liniowych,
+- selekcja krokowa do przodu i wstecz
+- drzewa regresyjne
+- bagging
+- lasy losoowe
+- boosting
 
-Z użyciem prostej regresji liniowej sprawdżmy jaki wpływ ma wiek zawodnika na jego ogólną ocenę.
+
+## Regresja wielokrotna
 
 ```{r}
-lmFitSimple <- lm(Rating ~ Age, data = Fifa)
-summary(lmFitSimple)
+lmFit.many <- lm(Rating ~ ., data = Fifa)
+summary(lmFit.many)
 ```
 
-Możemy sprawdzić poszczególne składowe modelu liniowego.
+Regresja wielokrotna wskazuję, że cechami na które warto zwrócić by uwagę w dalej analizie są m.in:
+- Age
+- Skill_Moves
+- Ball_Control
+- Standing_Tackle
+- Reactions
+- Attacking_Position
+- Composure
+- Short_Pass
+- Speed
+- Strength
+- Heading
+- GK_Positioning    
+- GK_Diving                 
+- GK_Kicking         
+- GK_Handling       
+- GK_Reflexes       
+- Preffered_Position
 
-```{R}
-lmFitSimple$coefficients
+
+```{r}
+Fifa_selected <- select(Fifa, Rating, Age, Skill_Moves, Ball_Control, Standing_Tackle, Reactions, Attacking_Position, Composure, Short_Pass, Speed, Strength, Heading, GK_Positioning, GK_Diving, GK_Kicking, GK_Handling, GK_Reflexes, Preffered_Position_encoded)
+Fifa_selected
 ```
 
-Następnie za pomocą funkcji predict() obliczamy przedziały ufności predykcji przewidujące średnie wartości
-
-```{R}
-predict(lmFitSimple, data.frame(Age = c(5, 10, 15)), interval = "confidence")
+```{r}
+lmFit <- lm(Rating ~ ., data = Fifa_selected)
+summary(lmFit)
 ```
 
-Prosta regresja liniowa na tle danych
+Z powyższej krótkiej analizy regresji wielokrotnej wynika, że najważniejszym współczynnikami z punktu widzenia Ratingu zawodnika są:
+- Reactions
+- Heading
+- Ball_Control
+- Speed
+- Strength
+- Standing_Tackle
 
-```{R}
-plot(Age, Rating)
-abline(lmFitSimple)
+## Selekcja cech modelu liniowego
+
+```{r}
+fit.bs <- regsubsets(Rating ~ ., data = Fifa[1:2000,], nvmax = 47)
+fit.bs.summary <- summary(fit.bs)
+fit.bs.summary
 ```
 
 ## Regresja wielomianowa
@@ -154,129 +196,18 @@ abline(lmFitSimple, col='blue')
 ```{r}
 lmFit.many <- lm(Rating ~ Nationality_encoded + Club_encoded + Club_Kit + Height + Weight + Preffered_Foot_encoded + Age + Preffered_Position_encoded)
 summary(lmFit.many)
-```
-
-# Klasyfikacja
-
-### TODO:
-Bardziej skomplikowaną klasyfiklacje
-
+Obiekt zwracany przez funkcję summary.regsubsets() zawiera informacje umożliwiające zidentyfikowanie globalnie najlepszego pozdbioru cech, np. miarę Cp.
 
 ```{r}
-plot(Rating)
-```
-
-```{r}
-fit.logistic <- glm(Preffered_Foot_encoded ~ Preffered_Position_encoded + Work_Rate_encoded + Nationality_encoded + Volleys + Penalties + Freekick_Accuracy, family = binomial, data = Fifa)
-summary(fit.logistic)
-```
-
-```{r}
-probs.logistic <- predict(fit.logistic, type = "response")
-head(probs.logistic)
-```
-
-```{r}
-pred.logistic <- ifelse(probs.logistic > 0.5, 1, 0)
-conf.logistic <- table(pred.logistic, Preffered_Foot_encoded)
-conf.logistic
-```
-```{r}
-(conf.logistic[1, 2] + conf.logistic[2, 1]) / sum(conf.logistic)
-mean(pred.logistic != Preffered_Foot_encoded)
-```
-
-```{r}
-n = dim(Fifa)[1]
-train = 1:n/2
-Fifa.test = Fifa[(n/2+1):n,]
-Preffered_Foot_encoded.test = Preffered_Foot_encoded[(n/2+1):n]
-```
-
-
-```{r}
-fit.logistic <- glm(Preffered_Foot_encoded ~ Preffered_Position_encoded + Work_Rate_encoded + Nationality_encoded + Volleys + Penalties + Freekick_Accuracy, family = binomial, data = Fifa,subset = train)
-summary(fit.logistic)
-```
-
-```{r}
-probs.logistic <- predict(fit.logistic, Fifa.test, type = "response")
-pred.logistic <- ifelse(probs.logistic > 0.5, 1, 0)
-table(pred.logistic, Preffered_Foot_encoded.test)
-```
-
-```{r}
-fit.logistic <- glm(Preffered_Foot_encoded ~ Volleys + Penalties + Freekick_Accuracy, family = binomial, data = Fifa,subset = train)
-summary(fit.logistic)
-```
-
-```{r}
-probs.logistic <- predict(fit.logistic, Fifa.test, type = "response")
-pred.logistic <- ifelse(probs.logistic > 0.5, 1, 0)
-table(pred.logistic, Preffered_Foot_encoded.test)
-```
-
-## LDA
-
-```{r}
-fit.lda <- lda(Preffered_Foot_encoded ~ Volleys + Penalties + Freekick_Accuracy, data = Fifa, subset = train)
-fit.lda
-```
-
-```{r}
-pred.lda <- predict(fit.lda, Fifa.test)
-table(pred.lda$class, Preffered_Foot_encoded.test)
-```
-
-```{r}
-max(pred.lda$posterior[, 2])
-```
-
-```{r}
-max(pred.lda$posterior[, 1])
-```
-
-## QDA
-
-```{r}
-fit.qda <- qda(Preffered_Foot_encoded ~ Volleys + Penalties + Freekick_Accuracy, data = Fifa, subset = train)
-fit.qda
-```
-
-```{r}
-pred.qda <- predict(fit.qda, Fifa.test)
-table(pred.qda$class, Preffered_Foot_encoded.test)
-```
-
-# kNN
-
-```{r}
-train.set <- Fifa[1:(n/2), c("Volleys", "Freekick_Accuracy")]
-test.set <- Fifa[(n/2 + 1):n, c("Volleys", "Freekick_Accuracy")]
-Preffered_Foot_encoded.train <- Preffered_Foot_encoded[1:(n/2)]
-pred.knn.1 <- knn(train.set, test.set, Preffered_Foot_encoded.train, k = 1)
-table(pred.knn.1, Preffered_Foot_encoded.test)
-```
-
-```{r}
-mean(pred.knn.1[1:8793] != Preffered_Foot_encoded.test[1:8793])
-```
-
-# Selekcja cech dla modeli liniowych
-
-```{r}
-fit.bs <- regsubsets(Rating ~ . - (Name + Nationality + Club + Club_Position + Club_Joining + Birth_Date + Preffered_Foot + Preffered_Position + Work_Rate), data = Fifa, nvmax = 46)
-summary(fit.bs)
-```
-```{r}
-fit.bs.summary <- summary(fit.bs)
 fit.bs.summary$cp
 ```
+
 ```{r}
 bic.min <- which.min(fit.bs.summary$bic)
 bic.min
 fit.bs.summary$bic[bic.min]
 ```
+
 ```{r}
 plot(fit.bs.summary$bic, xlab = "Liczba zmiennych", ylab = "BIC", col = "green",
      type = "b", pch = 20)
@@ -288,20 +219,183 @@ plot(fit.bs, scale = "bic")
 ```
 
 ```{r}
-coef(fit.bs, id = 6)
+coef(fit.bs, id = 17)
+```
+```{r, echo=FALSE}
+fit.forward <- regsubsets(Rating ~ ., data = Fifa[1:nrow(Fifa)/2,], nvmax = 47, method = "forward")
+fit.forward.summary <- summary(fit.forward)
+fit.forward.summary
+```
+```{r}
+fit.backward <- regsubsets(Rating ~ ., data = Fifa[1:nrow(Fifa)/2,], nvmax = 47, method = "backward")
+fit.backward.summary <- summary(fit.backward)
+fit.backward.summary
+```
+```{r}
+fit.backward.summary$cp
+fit.forward.summary$cp
 ```
 
 ```{r}
-lmFit.many <- lm(Rating ~ Ball_Control + Standing_Tackle + Reactions + Heading + GK_Handling + GK_Reflexes)
-summary(lmFit.many)
+bic.min <- which.min(fit.backward.summary$bic)
+bic.min
+fit.backward.summary$bic[bic.min]
+```
+
+```{r}
+bic.min <- which.min(fit.forward.summary$bic)
+bic.min
+fit.forward.summary$bic[bic.min]
+```
+
+
+```{r}
+plot(fit.backward.summary$bic, xlab = "Liczba zmiennych", ylab = "BIC", col = "green",
+     type = "b", pch = 20)
+points(bic.min, fit.backward.summary$bic[bic.min], col = "red", pch = 9)
+```
+
+```{r}
+plot(fit.backward, scale = "bic")
+```
+
+```{r}
+coef(fit.backward, id = 30)
+```
+
+## Drzewa decyzyjne
+
+### Drzewa regresyjne
+
+```{r}
+rating.tree <- tree(Rating ~ ., data = Fifa)
+summary(rating.tree)
+```
+
+```{r}
+plot(rating.tree)
+text(rating.tree, pretty = 0)
+```
+
+```{r}
+rating.tree
+```
+
+```{r}
+set.seed(1)
+n <- nrow(Fifa)
+train <- sample(1:n, n / 2)
+test <- -train
+rating.tree <- tree(Rating ~ ., data = Fifa, subset = train)
+rating.pred <- predict(rating.tree, newdata = Fifa[test,])
+mean((rating.pred - Fifa$Rating[test])^2)
+```
+
+```{r}
+rating.cv <- cv.tree(rating.tree)
+plot(rating.cv$size, rating.cv$dev, type = "b")
+```
+
+```{r}
+rating.pruned <- prune.tree(rating.tree, best = 12)
+plot(rating.pruned)
+text(rating.pruned)
+```
+
+```{r}
+rating.bag <- randomForest(Rating ~ ., data = Fifa[1:2000,], mtry = 10, importance = TRUE, na.action=na.roughfix)
+rating.bag
 ```
 ```{r}
-lmFit.Standing_Tackle <- lm(Rating ~ Standing_Tackle, data = Fifa)
-summary(lmFit.Standing_Tackle)
+plot(rating.bag, type = "l")
 ```
-```{R}
-plot(Standing_Tackle, Rating)
-abline(lmFit.Standing_Tackle)
+```{r}
+importance(rating.bag)
+```
+```{r}
+varImpPlot(rating.bag)
+```
+
+## Lasy losoowe
+
+```{r}
+set.seed(2)
+rating.rf <- randomForest(Rating ~ ., data = Fifa[1:2000,], subset = train,
+                         importance = TRUE, na.action=na.roughfix)
+rating.pred.rf <- predict(rating.rf, newdata = Fifa[test,])
+mean((rating.pred.rf - Fifa$Rating[test])^2)
+```
+
+```{r}
+plot(rating.rf, type = "l")
+```
+```{r}
+importance(rating.rf)
+```
+```{r}
+varImpPlot(rating.bag)
+```
+
+### Boosting
+
+```{r}
+rating.boost <- gbm(Rating ~ ., data = Fifa[1:2000,], distribution = "gaussian",
+                  n.trees = 5000, interaction.depth = 4)
+rating.boost
+```
+
+```{r}
+summary(rating.boost)
+```
+
+Podsumowanie najlepszego doboru cech:
+
+| Nazwa metody doboru cech | Najważniejsze cechy |
+| -- | -- |
+| Regresja wielokrotna | Reactions, Heading, Ball_Control |
+| Selekcja cech modelu liniowego | Skill_Moves, Reactions, Contract_Expiry |
+| Selekcja krokowa do przodu i wstecz | Skill_Move, Reactions, Ball_Control |
+| Drzewa regresyjne | Reactions, Ball_Control, Marking |
+| Bagging | Reactions, Standing_Tackle, Ball_Control |
+| Lasy losowe | Reactions, Ball_Control, Standing_Tackle |
+| Boosting | Reactions, Ball_Control, Standing_Tackle |
+
+## Walidacja krzyżowa wybranych cech
+
+Następnie przeprowadzimy walidację krzyżową wybranych trzech cech
+
+```{r}
+set.seed(2)
+validation.set <- Fifa[-train,]
+max.degree <- 11
+mse <- rep(0, times = max.degree)
+for (i in 1:max.degree) {
+  fit.lm <- lm(Rating ~ poly(Reactions, degree = i), data = Fifa, subset = train)
+  mse[i] <- mean((validation.set$Rating - predict(fit.lm, validation.set))^2)
+}
+mse
+```
+```{r}
+plot(mse, ylab = "MSE", type = "b", pch = 20, col = "blue")
+```
+
+```{r}
+lmFitSimple <- lm(Rating ~ Reactions, data = Fifa)
+summary(lmFitSimple)
+```
+```{r}
+plot(Reactions, Rating)
+abline(lmFitSimple)
+```
+```{r}
+plot(lmFitSimple)
+```
+
+Porównując z regresja nieliniową dla optymalnego wielomianu 9 stopnia:
+
+```{r}
+lmFit9 <- lm(Rating ~ poly(Reactions, 9))
+anova(lmFitSimple, lmFit9)
 ```
 
 
