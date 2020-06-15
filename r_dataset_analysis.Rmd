@@ -291,6 +291,93 @@ abline(lmFit.Standing_Tackle)
 
 
 
+# Wybrane ciekawsze analizy poszczególnych parametrów
+
+## BMI piłkarzy
+
+Przy pomocy parametrów wzrostu i wagi wyznaczono BMI dla każdego zawodnika.
+
+Na wykresie przedstawiono wartość BMI dla rankigu zawodników. Na czerwono zaznaczono granice wartości określanych jako "in the healthy weight range".
+
+```{r}
+BMI = Weight / (Height / 100)^2
+
+plot(Rating, BMI)
+abline(h=18.5, col="red")
+abline(h=24.9, col="red")
+```
+
+Wnioski:
+
+* Bardziej prawdopobonbe jest, że profesjonalny piłkarz ma naddwagę niż niedowagę
+* Najlepsi piłkarze w zdecydowanej większości znajdują się w zakresie zdrowej wartości BMI.
+
+## Pozycja zawodnika a parametry jakościowe
+
+W następnej kolejności zbadano jak pozycja na jakiej występuje zawodnik ma wpływ na jego wybrane parametry. Celem było zbadanie, czy w rzeczywistości na pewnych pozycjach niezbędne jest posiadanie odpowiednich cech.
+
+### Szybkość
+
+Piewszym znanym twierdzeniem jest, teza, że skrzydłowy musi być przede wszystkim szybki. Postanowiono zbadać czy zebrane dane potwierdzają taką tezę.
+
+W tym celu kolumnę zbadano średnią i medianę wartości *Speed* w zależności od kolumny *Club_position*.
+
+```{r}
+position_speed <- data.frame(Club_Position, Speed)
+mean_speed = aggregate(.~Club_Position, data=position_speed, mean)
+print(head(mean_speed[order(-mean_speed[,2]),], 10))
+
+median_speed = aggregate(.~Club_Position, data=position_speed, median)
+print(head(median_speed[order(-median_speed[,2]),], 10))
+```
+
+Wyjaśnienia powyższych skrótóW:
+
+* LW - Left Winger
+* RW - Right Winger
+* RM - Right Midfielder
+* LM - Left Midfielder
+* RWB - Right Winger Back
+* LWB - Left Winger Back
+* LAM - Left Attacking Midfielder
+* RB - Right Back
+* LB - Left Back
+* RAM - Right Attacking Midfielder
+
+Powyższe zestawienie potwierdza, że boczni zawodnicy, w szczególności skrzydłowi powinni cechować się znaczną szybkością.
+
+### Wzrost
+
+Oczywistym jest, że najwyższym wzrostem powinni cechować się bramkarze. Inne znane tezy mówią, że wysocy powinni być równieć środkowi obrońcy. Czasami mówi się również, że wzrost może być dużym atutem naspastników. W celu sprawdzenia takiej zależności przeprowadzono analizę analogiczną jak poprzednio jednak z wykorzystaniem parametru *Height* zamiast *Speed*.
+
+```{r}
+position_height <- data.frame(Club_Position, Height)
+mean_height = aggregate(.~Club_Position, data=position_height, mean)
+print(head(mean_height[order(-mean_height[,2]),], 5))
+
+median_height = aggregate(.~Club_Position, data=position_height, median)
+print(head(median_height[order(-median_height[,2]),], 5))
+```
+
+Powyższe wyniki potwierdzają, że w czołówce pozycji pod względem wzrostu znajdują się bramkarze, oraz środkowi obrońcy (CB - Center Back)
+
+### Wytrzymałość
+
+Często mówi się, że najwięcej biegać muszą defensywni pomocy. W celu weryfikacji czy w parametrach zawodników można znaleźć taką zależność przeprowadzono analizę poziomu wytrzymałości w zależności od pozycji zajmowanej na boisku.
+
+```{r}
+position_stamina <- data.frame(Club_Position, Stamina)
+mean_stamina = aggregate(.~Club_Position, data=position_stamina, mean)
+print(head(mean_stamina[order(-mean_stamina[,2]),], 5))
+
+median_stamina = aggregate(.~Club_Position, data=position_stamina, median)
+print(head(median_stamina[order(-median_stamina[,2]),], 5))
+```
+
+Również te wyniki potwerdziły słuszność wcześniej wymienionej tezy.
+
+Największą wytrzymałością cechowali się zawodnicy na pozycji DM (Defensive Midfielder).
+
 
 
 
