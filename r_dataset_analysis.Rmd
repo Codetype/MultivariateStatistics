@@ -104,17 +104,61 @@ attach(Fifa)
 head(Fifa1h)
 ```
 
-## Które cechy mają największy wpływ na Rating zawodnika? 
+# Regresja ratingu zawodnika względem wieku
+
+Jako pierwszą postanowiono przeprowadzić analizę wpływu wieku zawodnika na jego rating.
+
+## Regresja liniowa
+
+W pierwszym kroku użyto regresji liniowej.
+
+```{r}
+ageRatingLinear <- lm(Rating ~ Age, data = Fifa)
+summary(ageRatingLinear)
+```
+
+Prezentacja graficzna dopasowania:
+
+```{r}
+plot(Age, Rating)
+abline(ageRatingLinear, col='blue')
+```
+
+## Regresja wielomianowa
+
+Patrząc na powyższy wykres, ale także analizując logicznie zależność ogólnej oceny zawodnika od wieku wydaje się, że do pewnego momentu w karierze zawodnika jego **Rating** rośnie, a następnie powinien spadać.
+
+Z tego względu postanowiono zbadać, czy istnieją oznaki istotnej nieliniowej zależności między **Age** a **Rating**.
+
+Dopasowano model regresji wielomianowej trzeciego stopnia:
+
+```{r}
+ageRatingPoly <- lm(Rating ~ poly(Age, 3), data = Fifa)
+summary(ageRatingPoly)
+```
+
+Porównując dopasowanie w modelu liniowym i wielomianowym można zauważyć m.in. wzrost statystki **Multiple R-squared** z **0.21** do **0.29**.
+Potwierdza to, że zastosowanie nieliniowego modelu w tym przypadku jest jak najbardziej zasadne.
+
+W celu dodatkowej wizualizacji różnicy w dopasowaniach, oba dopasowania przedstawiono na tle danych na jednym wykresie:
+
+```{R}
+plot(Age, Rating)
+lines(sort(Age), fitted(ageRatingPoly)[order(Age)], col='red')
+abline(ageRatingLinear, col='blue')
+```
+
+# Które cechy mają największy wpływ na Rating zawodnika? 
 
 Na początku poszukujemy optymalnego zbioru cech, który ma największy wpływ na rating zawodnika.
 W tym celu zastosujemy:
-- regresję wielokrotną,
-- selekcja cech w modelach liniowych,
-- selekcja krokowa do przodu i wstecz
-- drzewa regresyjne
-- bagging
-- lasy losoowe
-- boosting
+* regresję wielokrotną,
+* selekcja cech w modelach liniowych,
+* selekcja krokowa do przodu i wstecz
+* drzewa regresyjne
+* bagging
+* lasy losoowe
+* boosting
 
 
 ## Regresja wielokrotna
@@ -125,24 +169,23 @@ summary(lmFit.many)
 ```
 
 Regresja wielokrotna wskazuję, że cechami na które warto zwrócić by uwagę w dalej analizie są m.in:
-- Age
-- Skill_Moves
-- Ball_Control
-- Standing_Tackle
-- Reactions
-- Attacking_Position
-- Composure
-- Short_Pass
-- Speed
-- Strength
-- Heading
-- GK_Positioning    
-- GK_Diving                 
-- GK_Kicking         
-- GK_Handling       
-- GK_Reflexes       
-- Preffered_Position
-
+* Age
+* Skill_Moves
+* Ball_Control
+* Standing_Tackle
+* Reactions
+* Attacking_Position
+* Composure
+* Short_Pass
+* Speed
+* Strength
+* Heading
+* GK_Positioning    
+* GK_Diving                 
+* GK_Kicking         
+* GK_Handling       
+* GK_Reflexes       
+* Preffered_Position
 
 ```{r, message=FALSE}
 Fifa_selected <- select(Fifa1h, Rating, Age, Skill_Moves, Ball_Control, Standing_Tackle, Reactions, Attacking_Position, Composure, Short_Pass, Speed, Strength, Heading, GK_Positioning, GK_Diving, GK_Kicking, GK_Handling, GK_Reflexes, Preffered_Position_encoded)
@@ -369,32 +412,6 @@ Porównując z regresja nieliniową dla optymalnego wielomianu 9 stopnia:
 ```{r}
 lmFit9 <- lm(Rating ~ poly(Reactions, 9))
 anova(lmFitSimple, lmFit9)
-```
-
-## Regresja wielomianowa
-
-Sprawdźmy jak wygląda zależność pomiędzy Raitngiem a wiekiem zawodnika
-
-Patrząc na powyższy wykres, ale także analizując logicznie zależność ogólnej oceny zawodnika od wieku wydaje się, że do pewnego momentu w karierze zawodnika jego **Rating** rośnie, a następnie powinien spadać.
-
-Z tego względu postanowiono zbadać, czy istnieją oznaki istotnej nieliniowej zależności między **Age** a **Rating**.
-
-Dopasowano model regresji wielomianowej trzeciego stopnia:
-
-```{r}
-ageRatingPoly <- lm(Rating ~ poly(Age, 3), data = Fifa)
-summary(ageRatingPoly)
-```
-
-Porównując dopasowanie w modelu liniowym i wielomianowym można zauważyć m.in. wzrost statystki **Multiple R-squared** z **0.21** do **0.29**.
-Potwierdza to, że zastosowanie nieliniowego modelu w tym przypadku jest jak najbardziej zasadne.
-
-W celu dodatkowej wizualizacji różnicy w dopasowaniach, oba dopasowania przedstawiono na tle danych na jednym wykresie:
-
-```{R}
-plot(Age, Rating)
-lines(sort(Age), fitted(ageRatingPoly)[order(Age)], col='red')
-abline(lmFitSimple, col='blue')
 ```
 
 # Wybrane ciekawsze analizy poszczególnych parametrów
